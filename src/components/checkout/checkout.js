@@ -10,10 +10,12 @@ import * as yup from 'yup';
 import { Formik } from 'formik';
 import { validarCpf, formatarCpf } from '../../utils/cpf-utils';
 import formatarCep from '../../utils/cep-util';
+import axios from 'axios';
 
 registerLocale('pt', pt);
 
 function Checkout(props){
+  const CHECKOUT_URL = 'http://localhost:3001/mini-ecommerce/checkout/finalizar-compra';
 
   const [dataNascimento, setDataNascimento] = useState(null);
   const [formEnviado, setFormEnviado] = useState(false);
@@ -36,8 +38,21 @@ function Checkout(props){
         return props.visivel ? null : 'hidden';
     }
 
-    function finalizarCompra(){
-
+   async function finalizarCompra(dados){
+        if (!dataNascimento) {
+            setFormEnviado(true);
+            return;
+          }
+          dados.dataNascimento = dataNascimento;
+          dados.produtos = JSON.stringify(props.produtos);
+          dados.total = `R$ ${props.total}`;
+          try {
+            await axios.post(CHECKOUT_URL, dados);
+            setShowModal(true);
+            props.handleLimparCarrinho();
+          } catch(err) {
+            setShowErroModal(true);
+          }
     }
 
     function handleDataNascimento(data) {
@@ -55,6 +70,14 @@ function Checkout(props){
         }
     }
     
+    function handleContinuar() {
+        setShowModal(false);
+        props.handleExibirProdutos();
+      }
+    
+      function handleFecharErroModal() {
+        setShowErroModal(false);
+    }
     return(
         <Jumbotron
             fluid
@@ -296,6 +319,39 @@ function Checkout(props){
                     </Form>
                 )}      
             </Formik>
+            <Modal
+        show={showModal}
+        data-testid="modal-compra-sucesso"
+        onHide={handleContinuar}>
+        <Modal.Header closeButton>
+          <Modal.Title>Compra realizada com sucesso!</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Um email de confirmação foi enviado com os detalhes da transação.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="success" onClick={handleContinuar}>
+            Continuar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showErroModal}
+        data-testid="modal-erro-comprar"
+        onHide={handleFecharErroModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Erro ao processar pedido.</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Tente novamente em instantes.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="warning" onClick={handleFecharErroModal}>
+            Continuar
+          </Button>
+        </Modal.Footer>
+      </Modal>
         </Jumbotron>
     )
 }
